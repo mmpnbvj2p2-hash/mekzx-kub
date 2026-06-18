@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสร้างใบขออนุญาตออนไลน์</title>
+    
+    <!-- นำเข้าฟอนต์ Prompt และ Sarabun จาก Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&family=Sarabun:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <!-- นำเข้า Font Awesome สำหรับใช้งานไอคอนสวยๆ -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- นำเข้า html2canvas สำหรับแปลงเป็นรูปภาพ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* สไตล์หลักของเว็บ โทนฟ้า-ขาว */
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --bg-gradient: linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%);
+            --text-main: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Prompt', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 30px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.05);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* โซนฟอร์มกรอกข้อมูล */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #475569;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-family: 'Prompt', sans-serif;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        /* โซนเลือกไอคอนหัวกระดาษ */
+        .icon-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .icon-option {
+            background: var(--primary-light);
+            border: 2px solid transparent;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--primary);
+            font-size: 18px;
+        }
+
+        .icon-option.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .icon-option p {
+            font-size: 11px;
+            margin-top: 4px;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        /* ส่วนแสดงผลพรีวิวเอกสาร (สไตล์กระดาษ A4 จำลอง) */
+        .preview-wrapper {
+            width: 100%;
+            overflow-x: auto; /* รองรับการดูบนมือถือไม่ให้ล้นจอ */
+            margin-bottom: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+        }
+
+        #document-sheet {
+            width: 100%;
+            min-width: 550px; /* ล็อกความกว้างขั้นต่ำเพื่อให้สัดส่วนเอกสารสวยงามตอนเซฟ */
+            background: white;
+            padding: 50px 45px;
+            font-family: 'Sarabun', sans-serif; /* ฟอนต์เอกสารทางการ */
+            color: #000;
+            box-sizing: border-box;
+        }
+
+        .doc-header {
+            text-align: center;
+            margin-bottom: 35px;
+            position: relative;
+        }
+
+        .doc-icon-display {
+            font-size: 36px;
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+
+        .doc-title {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-body {
+            font-size: 16px;
+            line-height: 2;
+            text-justify: inter-word;
+        }
+
+        .doc-line {
+            border-bottom: 1px dotted #000;
+            padding: 0 8px;
+            font-weight: 600;
+            display: inline-block;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .doc-footer {
+            margin-top: 50px;
+            float: right;
+            text-align: center;
+            min-width: 250px;
+            line-height: 1.8;
+        }
+
+        .clearfix {
+            clear: both;
+        }
+
+        /* ปุ่มกดบันทึก */
+        .btn-save {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 15px;
+            font-family: 'Prompt', sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-save:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        .btn-save:active {
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1><i class="fa-solid fa-file-signature"></i> สร้างใบขออนุญาตผู้ปกครอง</h1>
+        
+        <!-- เลือกไอคอนที่จะไปอยู่บนหัวกระดาษ -->
+        <div class="form-group">
+            <label>เลือกไอคอนกิจกรรม</label>
+            <div class="icon-selector">
+                <div class="icon-option active" onclick="changeIcon('fa-solid fa-graduation-cap', this)">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <p>วิชาการ</p>
+                </div>
+                <div class="icon-option" onclick="changeIcon('fa-solid fa-bus-simple', this)">
+                    <i class="fa-solid fa-bus-simple"></i>
+                    <p>ทัศนศึกษา</p>
+                </div>
+                <div class="icon-option" onclick="changeIcon('fa-solid fa-campground', this)">
+                    <i class="fa-solid fa-campground"></i>
+                    <p>เข้าค่าย</p>
+                </div>
+                <div class="icon-option" onclick="changeIcon('fa-solid fa-trophy', this)">
+                    <i class="fa-solid fa-trophy"></i>
+                    <p>กีฬาสี</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ฟอร์มกรอกข้อความ -->
+        <div class="form-group">
+            <label for="input-title">หัวข้อ / ชื่อเอกสาร</label>
+            <input type="text" id="input-title" class="form-control" value="หนังสือขออนุญาตให้นักเรียนเข้าร่วมกิจกรรม" oninput="updateDoc()">
+        </div>
+
+        <div class="form-group">
+            <label for="input-activity">ชื่อกิจกรรมที่จะไป</label>
+            <input type="text" id="input-activity" class="form-control" placeholder="เช่น กิจกรรมทัศนศึกษา ณ พิพิธภัณฑ์วิทยาศาสตร์" oninput="updateDoc()">
+        </div>
+
+        <div class="form-group">
+            <label for="input-date">วัน/เดือน/ปี ที่จัดกิจกรรม</label>
+            <input type="text" id="input-date" class="form-control" placeholder="เช่น วันศุกร์ที่ 26 มิถุนายน พ.ศ. 2569" oninput="updateDoc()">
+        </div>
+    </div>
+
+    <!-- ส่วนพรีวิวใบกระดาษที่จะบันทึกเป็นรูปภาพ -->
+    <div class="preview-wrapper">
+        <div id="document-sheet">
+            <div class="doc-header">
+                <div class="doc-icon-display"><i id="doc-icon" class="fa-solid fa-graduation-cap"></i></div>
+                <div class="doc-title" id="doc-title-display">หนังสือขออนุญาตให้นักเรียนเข้าร่วมกิจกรรม</div>
+            </div>
+            
+            <div class="doc-body">
+                <p>เรียน ผู้ปกครองของนักเรียน</p>
+                <p style="text-indent: 2.5公分; margin-top: 15px;">
+                    ด้วยทางโรงเรียนมีความประสงค์จะจัดกิจกรรม <span class="doc-line" id="doc-activity-display">........................................................................</span> 
+                    ในครั้งนี้ขึ้น เพื่อเป็นการส่งเสริมทักษะและการเรียนรู้นอกห้องเรียนของนักเรียน 
+                </p>
+                <p style="text-indent: 2.5公分;">
+                    ซึ่งกิจกรรมดังกล่าวจะจัดขึ้นใน <span class="doc-line" id="doc-date-display">........................................................................</span> 
+                    ทางโรงเรียนจึงขอความอนุญาตและยินยอมจากท่าน เพื่อให้นักเรียนในปกครองได้เข้าร่วมกิจกรรมตามวันและเวลาดังกล่าว
+                </p>
+            </div>
+
+            <div class="doc-footer">
+                <p>ลงชื่อ........................................................ผู้ปกครอง</p>
+                <p style="margin-top: 5px;">(........................................................)</p>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+    </div>
+
+    <!-- ปุ่มกดเซฟเซ็ตไว้ด้านล่างสุดเด่นๆ -->
+    <div style="width: 100%; max-width: 700px;">
+        <button class="btn-save" onclick="downloadImage()">
+            <i class="fa-solid fa-cloud-arrow-down"></i> บันทึกใบขออนุญาตลงมือถือ
+        </button>
+    </div>
+
+    <script>
+        // ฟังก์ชันอัปเดตข้อความสดๆ จากฟอร์มลงไปในใบกระดาษ
+        function updateDoc() {
+            const titleVal = document.getElementById('input-title').value;
+            const activityVal = document.getElementById('input-activity').value;
+            const dateVal = document.getElementById('input-date').value;
+
+            document.getElementById('doc-title-display').innerText = titleVal || 'หนังสือขออนุญาตให้นักเรียนเข้าร่วมกิจกรรม';
+            document.getElementById('doc-activity-display').innerText = activityVal || '........................................................................';
+            document.getElementById('doc-date-display').innerText = dateVal || '........................................................................';
+        }
+
+        // ฟังก์ชันเปลี่ยนไอคอนหัวกระดาษเอกสาร
+        function changeIcon(iconClass, element) {
+            // เปลี่ยนคลาสไอคอนในใบกระดาษ
+            document.getElementById('doc-icon').className = iconClass;
+            
+            // เปลี่ยนสถานะ Active ของปุ่มเลือกไอคอน UI
+            const options = document.querySelectorAll('.icon-option');
+            options.forEach(opt => opt.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        // ฟังก์ชันแปลงใบกระดาษเป็นรูปภาพชัดๆ แล้วดาวน์โหลดลงมือถือ
+        function downloadImage() {
+            const element = document.getElementById('document-sheet');
+            
+            // ใช้ scale: 3 เพื่อดึงความละเอียดให้คมชัดมากๆ เวลาเอาภาพไปสั่งปริ้นผ่านมือถือกระดาษจะไม่แตก
+            html2canvas(element, { scale: 3, useCORS: true }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'ใบขออนุญาตกิจกรรม.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>
